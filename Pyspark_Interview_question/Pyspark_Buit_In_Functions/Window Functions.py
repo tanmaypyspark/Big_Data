@@ -63,3 +63,7 @@ employees_Salary_df.withColumn('avg_salary', avg('salary').over(windowSpecAgg))\
         .withColumn('max_salary', max('salary').over(windowSpecAgg))\
             .withColumn('min_salary', min('salary').over(windowSpecAgg))\
                 .withColumn('row_number', row_number().over(Window.partitionBy('dept_Name').orderBy('max_salary','min_salary'))).display()
+                
+employees_Salary_df = employees_Salary_df.withColumn('row_number', row_number().over(Window.partitionBy().orderBy('dept_Name')))
+employees_Salary_df = employees_Salary_df.withColumn('sum_salary', sum('salary').over(Window.partitionBy().orderBy('row_number')))
+employees_Salary_df.display()
