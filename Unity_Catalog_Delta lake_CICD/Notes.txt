@@ -1,0 +1,104 @@
+############Azure Databricks Mastery: Hands-on project with Unity Catalog , Delta lake, CI/CD implementing Medallion Architecture##################
+
+###Azure Databricks - An Introduction
+	#Big data approach:
+		1. Monolithic: Single Computer for Data Storage and Processing
+		2. Distributed: Adding multiple machine to achieve parallel processing
+	
+	#Drawbacks of MapReduce:
+		1. Traditional Hadoop mapReduce processing:
+			HDFS Disk ---HDFS Read --> Iteration 1 (Process Data) --HDFS Write --> Storage(HDFS Disk) --HDFS Read--> Iteration 2 (Process Data) --HDFS Write --> Storage(HDFS Disk)
+			 A. so for every iteration it used to perform the read and write from disk. this will cause high disk inputs and outputs
+			 B. As developers has to code for map and reduce function, which is also very complex to implement, Thay also maintain the mapping logic and the reducing logic,
+				which is tough and limited.
+		This tends to introduce spark
+	#Enhance of Spark:
+		HDFS or Any cloud storage --HDFS Read--> Iteration 1(RAM) [Analysis Data] ---> Iteration 2 (RAM) [Analysis Data]
+	Apache Spark provides primitives for in-memory cluster computing.
+	A spark job can load and cache data into the memory and query it repeatedly.The in-memory computing is much faster than disk based application.
+	
+	#Apache Spark:
+		is an open source in-memory application framework for distributed data processing and iterative analysis on massive data volumnes.
+		 * In simple terms, Spark is a :
+			a. Compute Engine: Provides fast, in-memory distributed computation without being coupled to any storage system, which means here the compute which is the memory and the storage are decoupled.
+	#Apache Spark Ecosystem:
+	
+	######################################################################################
+	#              # # Spark	  # #          # #                     #  #              #
+ 	#              # # Streaming  # # Spark ML # # Spark Graph         #  # SparkR       #
+	#              # #            # # Mlib     # # (Graph Computation) #  # (R on Spark) #
+	# Spark SQL    # #			  # #          # #                     #  #              #
+	#(Interactive) # #####################################################################
+	#              # #                                                                   #
+	#              # #                                                                   #
+	#              # #  DataFrame/ Dataset APIs                                          #
+	#              # #                                                                   #
+	#              # #                                                                   #
+	######################################################################################
+
+					###########################################################                         
+					#						Sparke Core						  #                         
+					#                                                         #                         
+					#		######### ########## ########## ####### ######	  #                         
+					#		# Scala # # Java #   # Python # # SQL # # R  #    #                         
+					#		######### ########## ########## ####### ######    #                         
+					#       RDD - Resilient Distributed Dataset               #                         
+					###########################################################    
+	###########################################################################################
+    #       Distributed Compute Engine :- Spark Engine										  #
+	###########################################################################################
+	An operatiing system which will manage a group computers that is called cluster Manager.
+	
+	Q. What is Databricks:
+		Founder of spark create a commercial product, called as Databricks. Ehich gives a cloud platform to work with Apache Spark which is in a more 
+		efficient way with its runtime.
+	
+	Q. What is Azure Databricks?
+	A. 
+	   1. Unified interface: Spark will provide a unified interface, a single interface where you can manage your data engineering,science, analytics operations.
+	   2. Open analytics platform
+	   3. Compute Management
+	   4. Notebooks
+	   5. Intergrates with cloud storages
+	   6. MLFlow modeling
+	   7. Git
+	   8. SQL Warehouses
+	
+	#Azure Databricks Architecture:
+		It's structured in a way where you can focus on your core data engineering or data science or data analyst taksks.
+	Q. What resources will be managed by cloud service provider and managed by Databricks?
+	A. In Azure Databricks services there are 2 plane :
+		1. Control Plane (Databricks) [Includes the back end services that databricks managed][Notebooks, commands, Jobs, Queries]
+		2. Compute Plane (Azure) [To run your notebook, will create clusters, Cluster will be actually present in the compute plane]
+		But cluster manager who takes the configuration to create the cluster will be under the control plane.
+		Summarization: the resourcces that databricks provides to use to work with spark will be under the control plane, it mostly contains the metadata information such aws jobs, cluster manager, the notebook names and command inside the notebook.
+		
+	Control Plane: Databricks web Application, Notebooks, Jobs & Queries, Cluster Manager
+	Compute Plane : Azure Datalake Gen2, vNet(Virtual Machines)
+	
+	# Cluster Types and Configuration:
+		Cluster is a set of computer working as single machine run your workloads.
+		* Workloads can be:
+			1. set of commands in a notebook
+			2. A job that you run as a automated workflow
+		*Cluster Types:
+			1. All purpose cluster:
+				* To execute set of commands in a notebook Generally used when we want to interactively work with our notebook.
+				* Multiple users can share such cluster to do collaborative interactive analysis.
+				* You can terminate, restart, attach, detach these clusters to multiple notebooks(dash)
+				* You can choose:
+					@ Multiple-node cluster = Driver node and executor nodes will be on separate machine.
+					@ Single-node cluster = Only there will be a single driver node with single machine
+			
+			2. Job Cluster:
+				* To execute a job that run as a automated workflow.
+				* It runs a new job cluster and terminates the cluster automatically when the job is complete.
+				* You cannot restart a job cluster
+	#Cluster Access Mode:
+		Is a security feature that determine who can use a cluster and what data they can access via the cluster.
+		
+		There are 3 types pf access mode:
+		Id, Access Mode, Visible to user, UC Support, Supported Language, Notes
+		1. Single User, Always, Yes, Python/SQL/Scala/R, Can be assignes to and used by a single user.
+		2. Shared, Always(Premium Plan or above required),Yes, Python(on DB Runtime 11.1and above)/SQL/Scala(on unity catalog enabled clusters using DB Runtime 13.3 and above),Can be used by multiple users with data isolation among users.
+		3. No Isolation Shared, Yes Admins can hide this cluster types by enforcing user isolation in the admin setting page, No,Python/SQL/Scala/R, There is a related account-level setting for No Isolation Shared cluster
