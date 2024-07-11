@@ -101,4 +101,15 @@
 		Id, Access Mode, Visible to user, UC Support, Supported Language, Notes
 		1. Single User, Always, Yes, Python/SQL/Scala/R, Can be assignes to and used by a single user.
 		2. Shared, Always(Premium Plan or above required),Yes, Python(on DB Runtime 11.1and above)/SQL/Scala(on unity catalog enabled clusters using DB Runtime 13.3 and above),Can be used by multiple users with data isolation among users.
-		3. No Isolation Shared, Yes Admins can hide this cluster types by enforcing user isolation in the admin setting page, No,Python/SQL/Scala/R, There is a related account-level setting for No Isolation Shared cluster
+		3. No Isolation Shared, Yes Admins can hide this cluster types by enforcing user isolation in the admin setting page, No,Python/SQL/Scala/R, There is a related account-level setting for No Isolation Shared cluster.
+	
+	###########################################################################################################################################################
+	#                                                                                                                                                         #
+	#															DELTA LAKE																					  #	
+	#                                                                                                                                                         #
+	###########################################################################################################################################################
+	
+	## What is delta lake?
+	A. 1. Open source storage framework that brings reliability to data lakes
+	   2. Brings transation capabilities to data lakes
+	   3. Runs on top of your existing datalake and supports parquet
