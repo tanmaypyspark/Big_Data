@@ -113,3 +113,269 @@
 	A. 1. Open source storage framework that brings reliability to data lakes
 	   2. Brings transation capabilities to data lakes
 	   3. Runs on top of your existing datalake and supports parquet
+	   4. Enables Lakehouse architecture
+	## How to create delta lake?
+	A. using parquet formate we can't update the data directly, we have to use delta format
+		df.write.format('delta').save(path)
+	 Create file part*.parquet and log folder--> trmp_path, crc file and json file
+	 Read delta file:
+		df.read.format('parquet').load(path)
+		if we use this through error  "Incompatible format detected'
+	##Understanding the delta format
+	A. 
+	  Delta format --> under the parquet+transation log (delta log folder)
+	  delta lake build top of data lake(ADLS)
+	  
+	  delta/ 1. _delta_log/
+				1. 0000.json ( Containes transation information applied on actual data)
+				2. 0001.json
+			 2. Partition directory (if applied)
+				1. file01.parquet (containes actual data)
+			Note: Delta log folder is metadata cache folder
+	## Understanding transation Log:
+	a.
+		In .json file all the details of delta file mentions like number of rows, who perform that action, when that actions performed
+		when ever we over write the delta file it creates a new .parquet file and transation log files to mantain the SCD types.
+		But in parquet format if we overwrite that it remove the old file and create a new file, it folows SCD 0 data type.
+		
+		# At the time of read from delta folder:
+			When ever we read any delta file,spark first check the transation log .json file, and take the latest timestamp file 
+		QQ. when we overwrite a file it loggically remove the file from transationlog json file but why it still present in ADLS?
+		AA. Bez time-travel/versioning feature in delta lake
+	
+	## Creating delta tables using SQL
+	-->
+		$ In order to create any table we have to create schema:
+			CREATE SCHEMA IF NOT EXISTS delta
+			# Here schema is nothing but database. If you want check the db click catalog--> click databricks name or default
+		$ Create a table:
+			For best practice use 2 level name space(using ``):
+				%sql
+				--CREATE TABLE
+				CREATE OR REPLACE TABLE `delta`.deltaFile
+				(
+				  Education_Level VARCHAR(50),
+				  Line_Number INT,
+				  Employed INT,
+				  Unemployed INT,
+				  Industry VARCHAR(50),
+				  Gender VARCHAR(10),
+				  Date_Inserted DATE,
+				  dense_rank INT
+				)
+		Note: Any table creating by default is a delta table in the databricks, as we are not defining any location this is also treated as Managed table.
+	
+	##Create delta table using PySpark:
+		df.write.format('delta').saveAsTable('`delta`.delataSpark')
+	
+	##Schema Enforcement:
+	-->
+		Schema is blue print of data that define the shape of data, column, meta data
+		Ex:
+			let's take a delta table which is having 4 column(col1,col2,col3,col4),here table structure and table schema is maintained strictly. we are ingesting data into this table on daily basic.
+			Now on a fine day during the data ingestion some data comes with a new column which is not in the schema of our current table, which is being overwritten to the location where our delta lake is present.
+			So if we use data lake (not delta lake), it's allow the overwrite of this data and we will loss any our original schema.
+			But for delta lake we have a feature called schema enforcement or schema validation, which will check for the schema for whatever the data that is getting written on the delta lake table.
+			if the schema does not match with the data which we are trying to write to the destination, it's going to reject that particular daata.It will cancel the entire write operation and generates an error stating that the schema is not matching
+			the module of the schema.Validation is to safeguard the delta lake that ensures the data quality by rejecting the writes to a
+			table that do not match the table schema.
+			
+			@@There are certain rules on how the schema enforcement works:
+				Schema Enforcement Rules:
+					1. Cannot contain any additional columns that are not present in the target table's schema.
+					2. Cannot have column data types that differ from the column data types in the target table.
+			Note: If we want to ingest data frequently we have to use .mode('append')
+				  If we want to load/ append the data which is having more coles it throughes the error ' A schema mismatch detected when writing to the Delta table'
+				  But if we want to load/append with less column it works fine, for missing columns it assgin as null values.
+			Note:
+				If we want to upload the data which is having different data types it through error '[DELTA_FAILED_TO_MERGE_FIELDS] Failed to merge fields 'Line_Number' and 'Line_Number''
+	##Schema Evolution:
+		It's a feature to add a new column in the existing table, which is not possible in schema enforcement.
+		Example:
+		there is 2 way to do this:
+		1. .option('mergeSchema','true')
+			like :
+					df_more.write\
+					.format('delta')\
+					.option('mergeSchema','true')\
+					.mode('append')\
+					.saveAsTable('`delta`.deltaspark')
+		
+		2. spark.databricks.delta.schema.autoMerge.enabled = true
+		
+		##Allow different schema to evolve:
+			df.write.format('delta').option('overwrite').option('overwriteSchema','true')\
+				.saveAsTable('`delta`.deltaspark')
+	
+	##Audit Data Changes & Time Travel (Time Travel and Versioning)
+	--> 
+		* Delta automatically versions every operation that you perform
+		* You can time travel to historical versions
+		* This versioning makes it easy to audit data changes, roll back data in case of accidental bad
+		  writes or deletes, and reproduce experiments and reports.
+		
+		#Access old version:
+			#Using PySpark
+			spark.read.format('delta')\
+				.option('versionAsOf','1')\
+				.load(path)
+			
+			#Using SQL:
+				SELECT * FROM `delta`.versionTable VERSION AS OF 3 where Industry ='Networking'
+			
+			#using @v (VersionNumber) after Table Name:
+				#PySpark:
+					spark.read.format('delta')\
+					  .load(path+'@v1')
+				#SQL:
+					select * from DELTA.`path@v1`
+			#Using TimeStampAsOf:
+			    #PySpark:
+					spark.read.format('delta')\
+					.option('timestampAsOf','2023-12-08T05:06:44Z')
+				#SQL:
+					SELECT * FROM `delta`.versionTable TIMESTAMP AS OF "2023-12-08T05:06:44Z" where Industry ='Networking'
+			
+			Note: If we use timestamp as '2023-03-12' it through error like 'deltaErrorBase.TIMESTAMPEarlierTahanCommitRent..
+	
+		#Restore the table:
+			#Using RESTPRE commands:
+				RESTORE TABLE `delta`.versiontable TO VERSION AS OF 1
+	
+	##Vacuum Command:
+	--> 
+		Vacuum command help us to delete files if they are not valid. Delete old deltes
+		
+		# How many files will be deleted we can use dry run:
+			%sql
+			VACUUM delta.vactable DRY RUN
+			
+			#it's not going to delete any kind of data it's only showing the list of files are gonna delete
+			by deafult retention period is more 7 days.
+		
+		#we can change retention days,time
+		--> %sql
+			VACUUM `delta`.Vactable RETAIN 5 HOURS 
+			Note: data above the 5 hourse got deleted.
+		When ever we try to run this comman it's showing error:
+		IllegalArgumentException: requirement failed: Are you sure you would like to vacuum files with such a low retention period? If you have
+		writers that are currently writing to this table, there is a risk that you may corrupt the
+		state of your Delta table.
+
+		If you are certain that there are no operations being performed on this table, such as
+		insert/upsert/delete/optimize, then you may turn off this check by setting:
+		spark.databricks.delta.retentionDurationCheck.enabled = false
+
+		If you are not sure, please use a value not less than "168 hours".
+			   
+		state of your Delta table.
+		If you are certain that there are no operations being performed on this table, such as
+		insert/upsert/delete/optimize, then you may turn off this check by setting:
+		
+		spark.databricks.delta.retentionDurationCheck.enabled = false
+		
+		If you are not sure, please use a value not less than "168 hours".
+		
+		Note: Not recommanded to use vaccum command in developer or Prod enviroment, it's going to delete old files.
+	
+	## Convert To Delta:
+		We can conver a parquet file into delta file at the same location.
+		suppose we have a parquet file which is processed in a location
+		let parquet dataframe is parquet_df and location is final_path:
+		
+		#Using sql:
+		CONVERT TO DELTA parquet.`target_path`
+		
+		#Using PySpark:
+		from delta.tables import DeltaTabel
+		
+		DeltaTable.convertToDelta(spark,final_path)
+		
+		#Check the history:
+		#using SQL:
+		DESCRIBE HISTORY delta.`path`
+		#using PySpark:
+		deltaTable = DeltaTable.forPath(spark,final_path)
+		
+		fullHistoryDF = deltaTable.history()
+		lastOperationDF = deltaTable.history(1)
+	
+	## Optimize in Delta Lake:
+		The optimize command will help us to compact multiple small files into a single	file.
+		So this is one of the optimization feature in the delta lake which the name itself indicates the optimize.
+		
+		Now the use of this particular command is to compact multiple files into a single file.
+		If you are aware of the small file problem in the spark, where if you have 100 small files, 
+		where each transaction is creating a file(json log), if you want to read the content of each and every file, the time
+		to open each and every file is more than reading the actual file.	It need to open the file, it need to read the content, and it need to close the file.
+		So the time to open and close each and every file is more than actual content reading.So this is why the optimize command helps in
+		a way where it can just combine all the active files into a single file.
+		
+		So let's see by taking an example:
+			So we'll be doing some transformations on our data in our Delta lake transformations are nothing but the operations like inserts, deletes and updates and etc..
+			So each action or a transformation will be treated as a commit and it will create the parquet file. Along with that it will create the delta log files.
+			
+			So imagine we are creating a empty table because we are doing an empty table creation.
+			It is also an operation where the operation is recorded as a create table.
+			And it is not going to create any parquet file, but it is going to create a delta log.
+			So it is going to create a 000. Json file.
+			
+			Now this indicates that a create table action has been performed.
+			
+			Now we are going to do three write operations where I am sequentially writing three inserts.
+			
+			Now as each insert will have a data, it is going to write three parquet files.
+			So for easy understanding I am just naming the files as AB parquet, CD dot parquet and then goes on
+			in alphabetical order. So each insert will make a parquet file and a Json file are also created parallelly.
+			
+			If you are trying to apply the optimize command on top of it, it need to only pick the active files,
+			not the inactive files.
+			So inactive files were logically considered as they are removed, but they are still present in the
+			system so that if you can do the time travel, it can bring it back.
+			Now it is going to pick only the active files, and it is going to combine it as a single file.
+		
+		##Optimize Command:
+			INSERT:
+				1. "add":{"path":"part-00000-258a5518-0736-4095-9749-ef02d183a68b-c000.snappy.parquet"  -- Active
+				2. "add":{"path":"part-00000-75e27b90-364b-4e90-98bd-fa9654599554-c000.snappy.parquet", -- Inactive
+				3. "add":{"path":"part-00000-7d196389-b51c-44bf-ba29-b759dd3caa6d-c000.snappy.parquet"  -- Inactive
+			DELTE Line Number 104:
+				"remove":{"path":"part-00000-75e27b90-364b-4e90-98bd-fa9654599554-c000.snappy.parquet"
+			Update a record:
+				{"remove":{"path":"part-00000-7d196389-b51c-44bf-ba29-b759dd3caa6d-c000.snappy.parquet"
+				"add":{"path":"part-00000-b4b0bffb-2428-4051-aac0-ba8bf32dd69a-c000.snappy.parquet" 	--Active
+		##Optimize:
+			optimize `delta`.optimizetable
+			
+			it will remove all the active file and combine it in 1 single file:
+				remove:
+					"remove":{"path":"part-00000-258a5518-0736-4095-9749-ef02d183a68b-c000.snappy.parquet"
+					"remove":{"path":"part-00000-b4b0bffb-2428-4051-aac0-ba8bf32dd69a-c000.snappy.parquet"
+				ADD:
+					"add":{"path":"part-00000-6edab5b0-d8a2-4e20-9b3a-79580aa3bf5d-c000.snappy.parquet"
+		#Note: Versioning is also working in this table
+	
+	##UPSERT (MERGE) In Delta Lake:
+		Merge is nothing, but it is going to combine the data where we will be using that to update
+		the values or insert the values.
+		So we need to have a common column where we will have that as a reference.
+		So taking that column as a reference in both the sides source side and the destination side, if ever
+		there is a match in that particular column which is in the incoming data, you need to update that column.
+		If ever there is no common column found in the incoming data, you need to insert that.
+		
+		So Upsert is nothing but UPDATE + INSERT
+		
+		* UPSERT = UPDATE + INSERT data using merge command
+		* If any matching rows found, it will update them
+		* If no matching rows found, this will insert that as new row
+		
+		MERGE INTO < Destination_Table>
+		USING <Source_Table>
+		ON <Dest>.col2 = <Source>.col2
+		WHEN MATCHED
+		THEN UPDATE SET
+			<Dest>.col1 = <Source>.col1,
+			<Dest>.col2 = <Source>.col2
+		WHEN NOT MATCHED
+		THEN INSERT
+			VALUES(source.col1,source.col2)
