@@ -379,3 +379,42 @@
 		WHEN NOT MATCHED
 		THEN INSERT
 			VALUES(source.col1,source.col2)
+			
+	
+	
+	#################
+	##Role in Unity Catalog:
+	-->
+		Account Admin:
+				1. Create metastore and link workspaces
+				2. User and Group Management
+				3. Billing and Cost
+		Metastore Admin:
+				1. Create and manage Catalogs
+				2. Create and manage external locations
+		Workspace Admin:
+				1. Create and manage workspaces
+				2. Create and manage clusters
+		Workspace Users:
+				1. Can create tables, schemas, Objects
+	##Creating Users in Azure Entra ID:
+	#Create sample users
+		 Click side bar--> Microsoft Entra ID--users--New User--Create a new user
+			--> Review+Create
+		Pw: 123456789@Tm12/9932843949@Tm
+		username: Tony@tanmaymazure1gmail.onmicrosoft.com
+		
+		shyam@tanmaymazure1gmail.onmicrosoft.com
+		
+	## Users And Group Management:
+	 * Invite and add users to Unity Catalog
+	 * Create groups:
+		* Workspace admins
+		* Developers
+	* Assign groups to users"
+		* Workspace admins --> Tony@tanmaymazure1gmail
+		* Developers --> Shyam@tanmaymazure1gmail
+	* Assign roles to groups:
+		* Workspace Admin --> Workspace Admins Group
+		* Workspace User --> Developers Group
+		
