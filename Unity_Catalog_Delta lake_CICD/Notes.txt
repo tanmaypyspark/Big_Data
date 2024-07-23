@@ -380,7 +380,112 @@
 		THEN INSERT
 			VALUES(source.col1,source.col2)
 			
+		#Code
+		%sql
+		MERGE INTO `delta`.dest_table as dest
+		USING source_table as src
+		  ON dest.Line_Number = src.Line_Number
+		  WHEN MATCHED
+			THEN UPDATE SET
+		  dest.Education_Level = src.Education_Level,
+		  dest.Line_Number = src.Line_Number,
+		  dest.Employed = src.Employed,
+		  dest.Unemployed = src.Unemployed,
+		  dest.Industry = src.Industry,
+		  dest.Gender = src.Gender,
+		  dest.Date_Inserted = src.Date_Inserted,
+		  dest.dense_rank =src.dense_rank
+		WHEN NOT MATCHED
+		THEN INSERT 
+		(Education_Level, Line_Number, Employed, Unemployed, Industry, Gender, Date_Inserted, dense_rank
+		  )
+		  VALUES(src.Education_Level, src.Line_Number,src.Employed, src.Unemployed, src.Industry, src.Gender,src.Date_Inserted,src.dense_rank)
+		
+		@ What is the purpose of the Databricks Delta in Azure Databricks??
+		A. To Version control and manage data consistency in data lakes.
+
+		@ In Delta Lake, what is the purpose of the Delta table's transaction log, and how does it contribute to data consistency?
+		A. The transaction log tracks all changes to the delta table, ensuring ACID properties (Atomicity, Consistency, Isolation, Durability).
+
+		@ What is the significance of the OPTIMIZE command in Databricks Delta Lake, and how does it contribute to performance optimization?
+		A. OPTIMIZE reduces the number of small files and compacts data, improving query performance and storage efficiency.
+
+		@ In Delta Lake, what role does the concept of "time travel" play, and how does it benefit users in data exploration and analysis?
+		A. "Time Travel" allows users to go back in time and revert changes made to the Delta table for data correction.
+
+		@In Databricks Delta Lake, what does "schema evolution" refer to, and how does it contribute to managing changes in data structures over time?
+		A. Schema evolution allows for the addition, removal, or modification of columns in a Delta table without requiring a full table rewrite.
+
+###########################################################################################################################################################################
+																	UNITY CATALOG                                                                                         #
+###########################################################################################################################################################################
+
+	@ What problem solvedby unity catalog?
 	
+		Azure Databricks Workspace
+					|
+					|
+			User Management
+					|
+					|
+			Hive Metastore
+					|
+					|
+			 Acess Control
+					|
+					|
+		 Cluster, SQL Warehouses
+					|
+					|
+			Azure Datalake Gen2
+	
+	################################################Databricks Unity Catalog########################################
+	#
+	# Access Control, Lineage, Discovery, Monitoring, Auditing, Sharing
+	################################################################################################################
+	#
+	#   Metadata management
+	#	(Tables | Notebooks | Dashboards)
+	##############
+	
+	## Creating Access Connector for Databricks
+	--> Accesss connector --> create--> go to adls--> Access Control (IAM)--> ADD --> role assignment--> Storage Blob Data Contributor --> Members(Maanged Identity) --> select members-->Review+Assign
+	
+	## Create Metastore inUnity Catalog:
+	--->
+		Metastore:
+			A metastore is the top-level container for catalog in Unity Catalog. Within a metastore, Unity Catalog provides a 3-level namespace for organizing data: catalogs, schemas (also called databases), and tables / views.
+			
+		Managed Account --> Catalog-->Create Metastore
+		adlsgen2 --> abfss://container@storageaccountname.dfs.core.windows.net/foldername
+		Access Connector Id --> access_connector(Resource ID)
+		Note: Only a single metastore per region is allowed.
+	
+	#Enable Unity Catalog?
+	A.
+	 @ Assigning the metastore will update workspaces to use Unity Catalogmeaning that,
+		* Data can be governed and acess across workspaces.
+		* Data acess and lineage is captured automatically.
+		* Identities are managed centrally in the account console.
+	 @ Before enabling Unity Cataog, consider these readliness check:
+		* Understand the privileges of workspace admins in unity catalog and review existing workspace admin designations.
+		* Update any automation for principle/ group management, such as SCIM, Okta and AAD connectors, and Terraform to reference account endpoints instead of workspace endpoints
+		* Be aware that this action cannot be reversed
+	
+	##Unity Catalog Object Model:
+	--->
+						 Metastore
+							 |
+							 |
+	Storage Credential,Catalog , External Location, Share, Recipient, Provider
+							 |
+							 |
+						  Schema
+							 |
+							 |
+					Table |  View | Function | Volume | Model
+	
+	Note: Unity catalog tables are delta tables
 	
 	#################
 	##Role in Unity Catalog:
@@ -417,4 +522,81 @@
 	* Assign roles to groups:
 		* Workspace Admin --> Workspace Admins Group
 		* Workspace User --> Developers Group
+	
+	##Cluster Policies:
+	--> use to create rules for cluster for developers.
+		1. TO control user's ability to configure clusters based on a set of rules.
+		2. These rules specify which attributes or attribute values can be used during cluster creation.
+		3. Cluster policies have ACLs that limit their use to specific users and groups
+		4. A user who has unrestricted cluster create permission can select the Unrestricted policy and create fully-configurable clusters.
+	
+		We can fixed all the values there so developer can't change those.
+	
+	##What are cluster pools:
+	--> 
+		Databricks Pool will already place a request to cloud service provider before we create any cluster to use them.
+		And the cloud service provider will give the required virtual machines based on the configuration that 
+		we can keep one virtual machine in running state and other virtual machines can be in idle.  
+		The cluster creation time will be reduced by more than half while keeping this Databricks pool.
+		
+		This feature comes with cost..as one VM is in running state always.
+		
+		With out cluster pool:
+		When ever we request for cluster databricks asck azure cloud to create vm that time.
+	##Creating a Cluster pool:
+		DB-->Compute-->Create Pool --> assign min number of 
+		
+		Diff b/w --> All On-demand vs All spot:
+		On-demand instances have a fixed price and are always available, 
+		while spot instances operate on a bidding system and are not guaranteed to be available.
+		
+		With Instance pool--> takes <1.30 min
+		without Instance pool --> >5 min
+	## Creating a Dev Catalog:
+	--->
+					 Catalog		SCHEMA      TABLE
+		Metastore --> 1. Pl_Dev  --> 1. Bronze --> Table
+ 					  2. Pl_UAT		 2. Silver --> Table
+					  3. Pl_Prod	 3. Gold  ---> Table
+	##Unity Catalog Privileges:
+	-->
+		* Privileges are permission that we assign on objects to users.
+		* Can use SQL command or Unity Catalog UI
+			Eg:
+				GRANT privilege_type ON securable_object TO principal
+					privilege_type : Unity Catalog permission like SELECT,CREATE
+					securable_object: Any object like SCHEMA, TABLE, etc
+					principal: CAn be a user,group,etc
+	
+	#Create a catalog:(login from owner account)
+		side bar--> catalog --> create catalog--> permission(to give permission to admin group, developer group){grant,revoke}
+		# We can use SQL to grant or revoke permission to users,group,etc:
+			%sql
+			GRANT USE_CATALOG ON CATALOG `dev_catalog` TO `Developers G`
+			
+		By default if we are not giving any name table will create under hive_metastore.
+		Always use three level Namespace:
+			SELECT * FROM `catalog`.`schema`.Table
+			
+			Metastore --> catalog(level 1) --> Schema(level 2)--> Table/view/Function(level3)
+	
+	##Understanding Unity Catalog:
+	--->
+			###############################						############################
+			# Databricks Access Connector # --------------------# Azure Databricks Service #
+			###############################						############################
+						|
+						|
+						|
+						|
+			#######################
+			# Azure Datalake Gen2 #
+			#######################
+						Storage Credential     	 			  Vs  					External Location
+		1. An authentication and authorization mechanism for      1. Serves as a reference point for External storage
+		   accessing data stored.
+		2. Stores the access Credentials to provide access to     2. Stores the path of the external storages that you want to
+		   External Location										 access.
+		3. Credentials can be Managed Identities / Service        3. Makes use of storage credential to get access to External Storage.
+			principal 
 		
