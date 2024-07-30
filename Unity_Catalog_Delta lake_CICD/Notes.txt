@@ -838,6 +838,33 @@
 
 
 
+#################Delta Live Tables(DTL):#######
+##Declarative Programming:
+	Says what should be done, not how to do it.
+	
+		Procedural Programming    									Declaratove Programming
+	 Numbers = [..]												SELECT SUM(n) FROM numbers 
+	 sum = 0
+	 
+	 for n in Numbers:
+		sum = sum+not
+	 print('sum':sum)
+	 
+	 Apache Airflow															Delta Live Tables
+	 ADF		
+	
+	Q. What is Delta Live Tables(DLT)?
+	A. DLT is a declarative ETL framework for the Databricks Data Intelligence Platform that helps data teams simplisy streaming and batch ETL
+	   cost-effectively.
+	   
+	   Simply define the transformations to perform on your data and let DLT pipelines automatically manage task orchestration, cluster management,
+	   monitoring, data quality and error handling.
+	
+	## DLT Execution(Limitations):
+	--> * Required premium workspace ??
+		* Supports only Python and SQL language ??
+		* Can't run interactively(We can't execute the cell one by one, we are going to give a code, entire code will be scanned by the DTL, and it's going to implement by building the infrastructure.)
+		* No support for magic commands like %run.
 
 
 
