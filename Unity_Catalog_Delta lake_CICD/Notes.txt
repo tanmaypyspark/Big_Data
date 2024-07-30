@@ -176,7 +176,7 @@
 			Now on a fine day during the data ingestion some data comes with a new column which is not in the schema of our current table, which is being overwritten to the location where our delta lake is present.
 			So if we use data lake (not delta lake), it's allow the overwrite of this data and we will loss any our original schema.
 			But for delta lake we have a feature called schema enforcement or schema validation, which will check for the schema for whatever the data that is getting written on the delta lake table.
-			if the schema does not match with the data which we are trying to write to the destination, it's going to reject that particular daata.It will cancel the entire write operation and generates an error stating that the schema is not matching
+			if the schema does not match with the data which we are trying to write to the destination, it's going to reject that particular data.It will cancel the entire write operation and generates an error stating that the schema is not matching
 			the module of the schema.Validation is to safeguard the delta lake that ensures the data quality by rejecting the writes to a
 			table that do not match the table schema.
 			
@@ -279,7 +279,7 @@
 		Note: Not recommanded to use vaccum command in developer or Prod enviroment, it's going to delete old files.
 	
 	## Convert To Delta:
-		We can conver a parquet file into delta file at the same location.
+		We can convetr a parquet file into delta file at the same location.
 		suppose we have a parquet file which is processed in a location
 		let parquet dataframe is parquet_df and location is final_path:
 		
@@ -599,4 +599,259 @@
 		   External Location										 access.
 		3. Credentials can be Managed Identities / Service        3. Makes use of storage credential to get access to External Storage.
 			principal 
+	
+################################################################################################################################################################################
+#																		SPARK STRUCTURED STREAMING																			   #
+################################################################################################################################################################################
+
+	## Spark Structured Streaming:
+		#Read:
+			df_r_stream = spark.readStream.format('csv').option('header','true').schema(schema).load(stream_path)
+			Note: Spark is not going to read any specific files rather it read from a folder
+		#Display:
+			df_r_stream.display()
 		
+		Note: 1. When we read any data from the stream folder there will be no job untill or unless we display that dataframe
+			  2. When any data comes to that folder that is going to read as micro batch
+		
+		Q. How stream knows that there is a new file available?
+		A. In the backend there is a particularly streaming query.
+		Q. How spark know that there a data available and it needs to create a job?
+		A. If we use display() it is running in background to generate the job.
+		
+		Q. What are the supported soucres and sink for streaming?
+		A. Sources:
+				1. File source
+				2. Kafka Source
+				3. Socket Source
+				4. Rate Source
+				5. Table
+				
+				#Socket and Rate for testing not for Production
+			Sink:
+				1. File Sink
+				2. Kafka Sink
+				3. Foreach Sink
+				5. Console Sink
+				6. Table
+	
+	## StreamWriter:
+		To write the stream we have to use:
+			df_stream.writeStream.\
+				.option('checkpointLocation',<Location>)\
+				.outputMode('append')\
+				.toTable('<Table>')
+		
+		#CheckpoinyLocation: It is use to store the progress of our stream, like the metadata till where the data is copy.
+			* To develop fault-tolerant an resilient Spark applicaction
+			* It maintains intermediate state on fault-tolerant compatible file system like HDFS,ADLS and S3 storage systems to recover from failures.
+			* Must be unique to each stream.
+		
+		#outputMode:
+			Append --> outputMode('append') --> The records from incomming streams will be appended to destination
+			Complete --> outputMode('complete')--> All the processed rows will be displayed
+			Update --> outputMode('update')--> Spark will output only updated rows. This is valid only if there are aggregation results; otherwise, this would be similar to Append mode.
+			
+			##Use Append:
+				When we restart the cluster and write the stream data at same path and same table...and query that table it's showing no results bez it check the checkpointLocation meta data
+				as there is no new input it doest not append the data.\
+				In order to process the old data we need to delete the checkpointLocation.
+				delete checkpointLocation --> dbutils.fs.rm('/mnt/Streaming/raw/AppendCHECKPoint',True)
+				
+				df_Streamwrite = df_r_stream.writeStream\
+							.option('checkpointLocation',f'{stream_path}/AppendCHECKPoint')\
+							.outputMode('append')\
+							.queryName('AppendQuery')\
+							.toTable('hive_metastore.stream.AppendTable')
+			
+			##Use Complete:
+				Note:  Complete output mode not supported when there are no streaming aggregations on streaming DataFrames/Datasets;
+				Complete mode is use when we do some Aggregation on writeStream
+				
+				df_StreamwriteC = df_complete.writeStream\
+				.option('checkpointLocation',f'{stream_path}/CompleteCHECKPoint')\
+					.outputMode('complete')\
+					.queryName('CompleteQuery')\
+						.toTable('hive_metastore.stream.CompleteTable')
+	
+	##Understanding Triggers:
+		Trigger are used to kick off the streaming:
+		
+		1. Default Trigger:
+			If you are not specify any trigger, it's a default trigger, It execute stream query every 5-6 sec interval.
+			df_writeStream = (df_r_stream.writeStream
+						.option('checkpointLocation',f'{stream_path}/AppendCHECKPoint')
+						.outputMode('append')
+						.queryName('DefaultTrigger')
+						.toTable('hive_metastore.stream.AppendTable'))
+			It's keep on running unless manualy stop this query. There is a disadvantage here: If our source is performing append data in every 5-10 min there is unnessery
+			check the data every 5-6 sec.
+		2. Processing Time:
+			Here we can mention the interval of query execution. It means we can mention the processTime so after that mentioned time trigger will kick off the query.
+			Here 2 scenarios are come:(Suppose we gave processTime = '2 minutes')
+				1. And data is not come after 2 min then it'll wait till the data is comming.Once data arrived it kick off the query.
+				2. Suppose 1 micro batch is taking long time to execute the transformation (more that processTime) then after completed the query, it immediatly start the next query.
+				
+				df_writeStream = (df_r_stream.writeStream
+						.option('checkpointLocation',f'{stream_path}/AppendCHECKPoint')
+						.outputMode('append')
+						.trigger(processingTime='2 minutes')
+						.queryName('ProcessingTimeTrigger')
+						.toTable('hive_metastore.stream.AppendTable'))
+		3. Availablenow:
+			This trigger automatically stop once the process is done. This will check any available data from previous micro batch and this will process all the available data after previoud batch
+			and it'll stop the streamming query once it's processs. This will work like batch processing with in incremental Load.
+			We need to use some external schedular to exexute this query.
+			
+			df_writeStream = (df_r_stream.writeStream
+						.option('checkpointLocation',f'{stream_path}/AppendCHECKPoint')
+						.outputMode('append')
+						.trigger(availableNow=True)
+						.queryName('AvailableNow')
+						.toTable('hive_metastore.stream.AppendTable'))
+		Note: There is 1 more trigger continousTrigger, which is stream for mili second interval..which is not available.
+		
+		
+		Default Trigger--> --> Will trigger the micro batch for every 500 ms or half a second.
+		processingTime(Fixed Interval) --> trigger(processingTime='2 minutes') --> You can set processing time or time interval for each execution
+		availableNow(OneTime) --> .trigger(availableNow=True) --> Consume all the available records from previous execution as an incremental batch.
+		continuous-->trigger(continuous='5 seconds')--> To consume data for continuous mention time.
+	
+	##AutoLoader:
+		In order to ingest the data from a cloud platform to lakehouse(Bronze--Silver--Gold), have to handel millions of data, schema changes, bad data eleminate..
+		In short handel incremental load Data Engineer needs some complex logic to implement all of this.
+		All this can be supported by using AutoLoader.
+		
+		* It's a optimize data ingestion tool that incrementally and efficiently process new data files as they arrive in the cloud storage built into the Databricks Lakehouse.
+		* Auto Loader incrementally and efficiently process new data files as they arrive in cloud storage without any additional setup.
+		* Can load data files from cloud storages without beign vendor specific(AWS S3, Azure ADLS, Google cloud Storage,DBFS).
+		* Auto Loader can ingest JSON, CSV, PARQUET, AVRO, ORC, TEXT and BINARYFILE file formats.
+		* This is beneficial when you are ingesting data into your lakehouse particularly into bronze layer as a streaming query.
+	
+	## Autoloader: Schema Inference:
+		Implementing Autoloader:
+			df_str = (spark.readStream
+					.format('cloudFiles') ## This will tell the spark to use Autoloader
+					.option('cloudFiles.format','csv') ##You can tell spark the input file format
+					.option('header','true')
+					.schema(schmea) ***
+					.load(path))
+		*** You can remove this bez auto loader fetch the schema use someting like schemaLocation 
+				eg: .option('cloudFiles.SchmeaLocation',f'{stream_path}/schmeaInfer') --> it means it read the schema from the file and write that in mentioned location, Socket
+					when ever it reads the next file it go to that location and compare the schema and fetch the schema from there.
+		df_r_stream = (spark.readStream
+               .format('cloudFiles')
+               .option('cloudFiles.format','csv')
+               .option('cloudFiles.SchmeaLocation',f'{stream_path}/schmeaInfer')
+			   .option('cloudFiles.inferColumnTypes','true') #It fetch the data correct data type
+               .option('header','true')
+               .schema(schema).load(stream_path))
+		#schemaHints:
+			df_r_stream = (spark.readStream
+               .format('cloudFiles')
+               .option('cloudFiles.format','csv')
+               .option('cloudFiles.SchemaLocation',f'{stream_path}/schmeaInfer')
+               .option('cloudFiles.inferColumnTypes','true')
+               .option('cloudFiles.schemaHints','Citizens Long') ***
+               .option('header','true').load(stream_path))
+			   
+			*** Schema Hints is something, when ever this columns comes we have to apply the data types as Long
+	
+	##Schema Evolution:
+		Schema evolution is the process of managing changes in data schema as it evolves over time, often due to updates in software or changing business requirements,
+		which can cause schema drift.
+		
+		Ways to handel schema changes:
+			* Failes the stream
+			* Manually change the existing schema
+			* Evolve automatically with change in schema
+		
+		Schema Evolution:
+			* addNewColumns = Stream fails. New columns are added to the schema.Existing columns do not evolve data types.
+			* failOnNewColumns = Stream fails. Stream does not restart unless the provided schema is updated, or the offending data file is removed
+			* rescue  = Schema is never evolved and stream does not fail due to schema changes. All new columns are recorded in the rescued data column.
+			* none = ignore any new columns (Does not evolve the schema, new columns are ignored, and data is not rescued unless the rescuedDataColumn option is set.
+					(Stream does not fail due to schema changes)
+	
+	
+##Project Setup:
+	###Ingestion To Bronze:
+		Deta Lake--> Bronze(Using Auto Loader, Trigger availableNow(Incremental batch processing))
+		
+	Note: Auto loader can ingest and process millions of files/ hours, It's by default perform increamental loadding.
+		By maintaining metadata. 
+
+	##Silver Transformation:
+		*Read Bronze data(we are not using Auto Loader, It's only work on cloudFiles, If there is any source data in cloud storage and that is in the format of Files we can use Auto Loader, In our case we load data in delta tables))
+		we are using delta format, spark stracture streaming will take care of increamental load.
+		
+		#### How we perform Data Quality check:
+			## Drop duplicates data:
+				@ dropDuplicates():
+					df.dropDuplicates()
+			## Replacing Null values:
+				there is 2 scenarios:
+					1. String columns
+					2. Numeric Columns
+					
+					For string columns --> 'NA'
+					For Numeric Columns --> 0/Null
+					We can find the number of columns:
+					columns = df.schema.names
+					str:
+						df_N_Str = df.fillna('Unknown',subset = columns)
+					Numeric:
+						df_N_Str = df.fillna(0,subset = columns)
+					
+					Note: Spark is quite intellegent to understand if there is a string column it'll replace that with string value and if it's numeric it'll replace with 0.
+		##Count:
+			df.withColumn('Electric_Vehicles_count', (col('ev_cars') + col('ev_bikes))
+	##Gold Layer:
+		Less transformation and Data is loaded to the final table to generate powerBI report
+	
+	We can create databricks workflow to automate the process(it means when ever a new file comes to the landing container notebooks will autometically start execute)
+	Note: Databricks Workflow is more less similar with ADF
+	
+	In databricks workflow we have 3 triggers:
+		1. Scheduled
+		2. File Arrival
+		3. Continuous
+	Scheduled: Here we can scedule based on minutes, hours, day, week,month
+				It further divided into 2
+					1. simple: Runs periodically based on the specified time unit and interval(Hour, Day, Week)
+					2. Cron Trigger: cron is a UNIX tool that has been around for a long time, so its scheduling capabilities are powerful and proven. 
+						The CronTrigger class is based on the scheduling capabilities of cron
+						example: “At 8:00am every Monday through Friday” or “At 1:30am every last Friday of the month”.
+	
+	File Arrival: File arrival triggers monitor cloud storage paths of up to 10,000 files for new files. These paths are either Unity Catalog volumes 
+					or external locations managed through Unity Catalog.
+				When ever a file is arrived at a define location the jobs will start executing
+						NOTE: The storage location to check for file arrivals. This can be a volume, an external location, a subfolder of a volume or an external location.
+						
+	Continuous: A Continuous job is intended to be always running, and it ensure that there is always one active run.
+				A new run is created as soon as the previous one finished(due to failure or success) or when there are none.
+					Note: Task dependencies and retry policy are not alllowed for continous jobs.
+	
+
+###CICD:
+
+
+
+
+
+
+
+	
+## Delta Live Tsbles (DLT):
+	##Origin of Delta Live tales:
+	
+	##Considerations in Lakehouse Architecture
+	
+	##Understanding Declarative ETL
+	
+	##Limitations of Delta Live Tables:
+	
+	##Defining Tables from datasets
+	
+	##{'CHKPoint':'checkpoints', 'CHKPointXT':'','ENV':'dev','Debug':1,'run_type':'NA'}
+	
