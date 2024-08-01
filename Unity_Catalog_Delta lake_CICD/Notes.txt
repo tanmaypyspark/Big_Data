@@ -50,7 +50,7 @@
 	An operatiing system which will manage a group computers that is called cluster Manager.
 	
 	Q. What is Databricks:
-		Founder of spark create a commercial product, called as Databricks. Ehich gives a cloud platform to work with Apache Spark which is in a more 
+		Founder of spark create a commercial product, called as Databricks. which gives a cloud platform to work with Apache Spark which is in a more 
 		efficient way with its runtime.
 	
 	Q. What is Azure Databricks?
@@ -66,6 +66,7 @@
 	
 	#Azure Databricks Architecture:
 		It's structured in a way where you can focus on your core data engineering or data science or data analyst taksks.
+	
 	Q. What resources will be managed by cloud service provider and managed by Databricks?
 	A. In Azure Databricks services there are 2 plane :
 		1. Control Plane (Databricks) [Includes the back end services that databricks managed][Notebooks, commands, Jobs, Queries]
@@ -114,13 +115,16 @@
 	   2. Brings transation capabilities to data lakes
 	   3. Runs on top of your existing datalake and supports parquet
 	   4. Enables Lakehouse architecture
+	
 	## How to create delta lake?
 	A. using parquet formate we can't update the data directly, we have to use delta format
 		df.write.format('delta').save(path)
+	 
 	 Create file part*.parquet and log folder--> trmp_path, crc file and json file
 	 Read delta file:
 		df.read.format('parquet').load(path)
 		if we use this through error  "Incompatible format detected'
+	
 	##Understanding the delta format
 	A. 
 	  Delta format --> under the parquet+transation log (delta log folder)
@@ -132,15 +136,17 @@
 			 2. Partition directory (if applied)
 				1. file01.parquet (containes actual data)
 			Note: Delta log folder is metadata cache folder
+	
 	## Understanding transation Log:
 	a.
 		In .json file all the details of delta file mentions like number of rows, who perform that action, when that actions performed
-		when ever we over write the delta file it creates a new .parquet file and transation log files to mantain the SCD types.
+		when ever we overwrite the delta file it creates a new .parquet file and transation log files to mantain the SCD types.
 		But in parquet format if we overwrite that it remove the old file and create a new file, it folows SCD 0 data type.
 		
 		# At the time of read from delta folder:
 			When ever we read any delta file,spark first check the transation log .json file, and take the latest timestamp file 
-		QQ. when we overwrite a file it loggically remove the file from transationlog json file but why it still present in ADLS?
+		
+		QQ. when we overwrite a file it loggically remove the file from transation log json file but why it still present in ADLS?
 		AA. Bez time-travel/versioning feature in delta lake
 	
 	## Creating delta tables using SQL
@@ -148,6 +154,7 @@
 		$ In order to create any table we have to create schema:
 			CREATE SCHEMA IF NOT EXISTS delta
 			# Here schema is nothing but database. If you want check the db click catalog--> click databricks name or default
+		
 		$ Create a table:
 			For best practice use 2 level name space(using ``):
 				%sql
@@ -172,11 +179,15 @@
 	-->
 		Schema is blue print of data that define the shape of data, column, meta data
 		Ex:
-			let's take a delta table which is having 4 column(col1,col2,col3,col4),here table structure and table schema is maintained strictly. we are ingesting data into this table on daily basic.
-			Now on a fine day during the data ingestion some data comes with a new column which is not in the schema of our current table, which is being overwritten to the location where our delta lake is present.
-			So if we use data lake (not delta lake), it's allow the overwrite of this data and we will loss any our original schema.
-			But for delta lake we have a feature called schema enforcement or schema validation, which will check for the schema for whatever the data that is getting written on the delta lake table.
-			if the schema does not match with the data which we are trying to write to the destination, it's going to reject that particular data.It will cancel the entire write operation and generates an error stating that the schema is not matching
+			let's take a delta table which is having 4 column(col1,col2,col3,col4),here table structure and table schema is maintained strictly. 
+			we are ingesting data into this table on daily basic.
+			Now on a fine day during the data ingestion some data comes with a new column which is not in the schema of our current table, 
+			which is being overwritten to the location where our delta lake is present.
+			So if we use data lake (not delta lake), it's allow the overwrite of this data and we will loss our original schema.
+			But for delta lake we have a feature called schema enforcement or schema validation, which will check for the schema for whatever the data that is getting 
+			written on the delta lake table.
+			if the schema does not match with the data which we are trying to write to the destination, it's going to reject that particular data.
+			It will cancel the entire write operation and generates an error stating that the schema is not matching
 			the module of the schema.Validation is to safeguard the delta lake that ensures the data quality by rejecting the writes to a
 			table that do not match the table schema.
 			
@@ -184,11 +195,13 @@
 				Schema Enforcement Rules:
 					1. Cannot contain any additional columns that are not present in the target table's schema.
 					2. Cannot have column data types that differ from the column data types in the target table.
+			
 			Note: If we want to ingest data frequently we have to use .mode('append')
 				  If we want to load/ append the data which is having more coles it throughes the error ' A schema mismatch detected when writing to the Delta table'
 				  But if we want to load/append with less column it works fine, for missing columns it assgin as null values.
 			Note:
 				If we want to upload the data which is having different data types it through error '[DELTA_FAILED_TO_MERGE_FIELDS] Failed to merge fields 'Line_Number' and 'Line_Number''
+	
 	##Schema Evolution:
 		It's a feature to add a new column in the existing table, which is not possible in schema enforcement.
 		Example:
@@ -463,7 +476,7 @@
 	
 	#Enable Unity Catalog?
 	A.
-	 @ Assigning the metastore will update workspaces to use Unity Catalogmeaning that,
+	 @ Assigning the metastore will update workspaces to use Unity Catalog meaning that,
 		* Data can be governed and acess across workspaces.
 		* Data acess and lineage is captured automatically.
 		* Identities are managed centrally in the account console.
@@ -616,6 +629,7 @@
 		
 		Q. How stream knows that there is a new file available?
 		A. In the backend there is a particularly streaming query.
+		
 		Q. How spark know that there a data available and it needs to create a job?
 		A. If we use display() it is running in background to generate the job.
 		
@@ -650,7 +664,7 @@
 		#outputMode:
 			Append --> outputMode('append') --> The records from incomming streams will be appended to destination
 			Complete --> outputMode('complete')--> All the processed rows will be displayed
-			Update --> outputMode('update')--> Spark will output only updated rows. This is valid only if there are aggregation results; otherwise, this would be similar to Append mode.
+			Update --> outputMode('update')--> Spark will update rows. This is valid only if there are aggregation results; otherwise, this would be similar to Append mode.
 			
 			##Use Append:
 				When we restart the cluster and write the stream data at same path and same table...and query that table it's showing no results bez it check the checkpointLocation meta data
@@ -839,46 +853,157 @@
 
 
 #################Delta Live Tables(DTL):#######
-##Declarative Programming:
-	Says what should be done, not how to do it.
-	
-		Procedural Programming    									Declaratove Programming
-	 Numbers = [..]												SELECT SUM(n) FROM numbers 
-	 sum = 0
-	 
-	 for n in Numbers:
-		sum = sum+not
-	 print('sum':sum)
-	 
-	 Apache Airflow															Delta Live Tables
-	 ADF		
-	
-	Q. What is Delta Live Tables(DLT)?
-	A. DLT is a declarative ETL framework for the Databricks Data Intelligence Platform that helps data teams simplisy streaming and batch ETL
-	   cost-effectively.
-	   
-	   Simply define the transformations to perform on your data and let DLT pipelines automatically manage task orchestration, cluster management,
-	   monitoring, data quality and error handling.
-	
-	## DLT Execution(Limitations):
-	--> * Required premium workspace ??
-		* Supports only Python and SQL language ??
-		* Can't run interactively(We can't execute the cell one by one, we are going to give a code, entire code will be scanned by the DTL, and it's going to implement by building the infrastructure.)
-		* No support for magic commands like %run.
-
 
 
 	
-## Delta Live Tsbles (DLT):
+## Delta Live Tables (DLT):
 	##Origin of Delta Live tales:
-	
+		Medallion/ Lakehouse Architecture
 	##Considerations in Lakehouse Architecture
-	
+		1. Dependency (Create Dependency)
+		2. Checkpointing (To store Metadata)
+		3. Governance
+		4. Discovery
+		5. Quality Checks
+		6. Version Control
+		
 	##Understanding Declarative ETL
-	
+		##Declarative Programming:
+		Says what should be done, not how to do it.
+		
+			Procedural Programming    									Declaratove Programming
+		 Numbers = [..]												SELECT SUM(n) FROM numbers 
+		 sum = 0
+		 
+		 for n in Numbers:
+			sum = sum+not
+		 print('sum':sum)
+		 
+		 Apache Airflow															Delta Live Tables
+		 ADF		
+		
+		Q. What is Delta Live Tables(DLT)?
+		A. DLT is a declarative ETL framework for the Databricks Data Intelligence Platform that helps data teams simplisy streaming and batch ETL
+		   cost-effectively.
+		   
+		   Simply define the transformations to perform on your data and let DLT pipelines automatically manage task orchestration, cluster management,
+		   monitoring, data quality and error handling.
+		
+		
 	##Limitations of Delta Live Tables:
+		* Requires premium workspace
+		* Supports only Python and SQL Languages
+		* Can't run interactively(We can't execute the cell one by one, we are going to give a code, entire code will be scanned by the DTL, and it's going to implement by building the infrastructure.)
+		* No support for magic commands like %run. (We can use dbutils.notebook.run)
+		* No dual language(either fully python or SQL)
 	
 	##Defining Tables from datasets
+		Delta_Live_Tables are not interactively run type
+	##Creating DLT Pipeline:
+		##Once notebook creation is done, we can create a DLT pipeline by going to workflows--> create Delta Live Tables
+		##Once setup is done we can create pipeline
+			Note: Destination storage option --> Unity Catalog is new, not ready for Production
+				  Compute:
+					Cluster mode: 
+						1. Enhanced Autoscaling: It's intellegent enough that it can upscale or dorwnscal the workers
+						2. Legacy Autoscaling: You can choose min or max workers
+						3. Fixed Size : Fixed workers(min 1)
+		Node Type: Click Json --> cluseters-->add 'node_type_id':'your storage type'
+		##Product Edition:
+			1. Core
+			2. Pro
+			3. Advanced
+		##Pipeline Modr:
+			1. Triggered : Trigger based on schedular
+			2. Continuous: TO run continously
+		
+		Once created the pipeline:
+			You see there:
+				Development: Will retain the cluster for 2 hours and it's not gonna do any retries.
+				Production: is gonna invoke the cluster and it is gonna stop the cluster once the execution is completed, gonna do at least retries
+			This is a increamental flow as we use auto loader(cloud_files)
+	
+	##End to End DLT Pipeline:
+	
+		# Expectations in DLT Pipeline
+		
+		Action										Results												usage
+		Warn					Invaild records are written to the target; failure is 					---
+	  (default) 				reported as a metric for the database
+	
+	   drop 				Invaild records are dropped before data is written to the 			On Violation Drop Row
+						   target; failure is reported as a metric for the dataset.
+	
+	   fail					Invalid records prevent the update from succeeding. Manual          On Violation Fail Update
+						    intervention is required before.
 	
 	##{'CHKPoint':'checkpoints', 'CHKPointXT':'','ENV':'dev','Debug':1,'run_type':'NA'}
+			
+## Spark Streaming Windows: A Comprehensive Overview
+
+		Spark Streaming offers powerful capabilities to process real-time data streams efficiently. A crucial aspect of this is the concept of **windows**.
+
+		### What is a Window in Spark Streaming?
+		A window in Spark Streaming is a time-based abstraction that divides the continuous stream of data into smaller, manageable chunks for processing. It allows you to perform aggregations or other computations on data within a specific time frame.
+
+		### Types of Windows
+		Spark Streaming primarily supports three types of windows:
+
+		1. **Tumbling Windows:**
+		   * Fixed-size, non-overlapping windows.
+		   * Ideal for time-based aggregations (e.g., hourly, daily counts).
+		   * Example: Calculate the total sales every hour.
+
+		2. **Sliding Windows:**
+		   * Overlapping windows with a fixed size and slide interval.
+		   * Useful for real-time analysis with overlapping time frames.
+		   * Example: Calculate the average temperature over a 5-minute window with a 1-minute slide.
+
+		3. **Session Windows:**
+		   * Dynamically defined windows based on user activity or session length.
+		   * Suitable for analyzing user behavior or web traffic.
+		   * Example: Identify user sessions based on inactivity periods.
+
+		### Key Considerations
+		* **Window Duration:** The length of the window.
+		* **Slide Interval:** The time between the start of consecutive windows (for sliding windows).
+		* **Trigger:** The mechanism that defines when to process a window (e.g., processing time, event time).
+		* **Watermarking:** Assigning timestamps to events for accurate windowing.
+		* **State Management:** Handling stateful operations within windows.
+
+		### Code Example: Tumbling Window
+		```python
+		from pyspark.sql import SparkSession
+		from pyspark.sql.functions import window
+
+		# Create a SparkSession
+		spark = SparkSession.builder.appName("StructuredNetworkWordCount").getOrCreate()
+
+		# Read data from a socket
+		lines = spark.readStream.format("socket").option("host", "localhost").option("port", 9999).load()
+
+		# Split the lines into words
+		words = lines.select(explode(split(lines.value, " ")).alias("word"))
+
+		# Count the words in each window
+		windowedCounts = words.groupBy(
+			window(words.timestamp, "10 seconds", "10 seconds"),
+			words.word
+		).count()
+
+		# Start the query
+		query = windowedCounts.writeStream.outputMode("Complete").format("console").start()
+
+		query.awaitTermination()
+		```
+
+		### Additional Considerations
+		* **Window Functions:** Spark SQL provides window functions (e.g., `row_number`, `rank`, `lag`, `lead`) that can be used with windows for more complex calculations.
+		* **Stateful Operations:** For stateful computations, Spark Structured Streaming offers stateful operators like `countStateByValue`, `updateStateByKey`.
+		* **Performance Optimization:** Consider factors like window size, state management, and parallelism for optimal performance.
+
+		By effectively utilizing windows, you can extract valuable insights from real-time data streams and make data-driven decisions. 
+
+		**Would you like to explore a specific use case or dive deeper into a particular window type?**
+
 	
