@@ -20,7 +20,8 @@
 	#Apache Spark:
 		is an open source in-memory application framework for distributed data processing and iterative analysis on massive data volumnes.
 		 * In simple terms, Spark is a :
-			a. Compute Engine: Provides fast, in-memory distributed computation without being coupled to any storage system, which means here the compute which is the memory and the storage are decoupled.
+			a. Compute Engine: Provides fast, in-memory distributed computation without being coupled to any storage system, 
+			which means here the compute which is the memory and the storage are decoupled.
 	#Apache Spark Ecosystem:
 	
 	######################################################################################
@@ -72,7 +73,8 @@
 		1. Control Plane (Databricks) [Includes the back end services that databricks managed][Notebooks, commands, Jobs, Queries]
 		2. Compute Plane (Azure) [To run your notebook, will create clusters, Cluster will be actually present in the compute plane]
 		But cluster manager who takes the configuration to create the cluster will be under the control plane.
-		Summarization: the resourcces that databricks provides to use to work with spark will be under the control plane, it mostly contains the metadata information such aws jobs, cluster manager, the notebook names and command inside the notebook.
+		Summarization: the resourcces that databricks provides to use to work with spark will be under the control plane, 
+			it mostly contains the metadata information such as jobs, cluster manager, the notebook names and command inside the notebook.
 		
 	Control Plane: Databricks web Application, Notebooks, Jobs & Queries, Cluster Manager
 	Compute Plane : Azure Datalake Gen2, vNet(Virtual Machines)
@@ -120,7 +122,7 @@
 	A. using parquet formate we can't update the data directly, we have to use delta format
 		df.write.format('delta').save(path)
 	 
-	 Create file part*.parquet and log folder--> trmp_path, crc file and json file
+	 Create file part*.parquet and log folder--> temp_path, crc file and json file
 	 Read delta file:
 		df.read.format('parquet').load(path)
 		if we use this through error  "Incompatible format detected'
@@ -464,7 +466,7 @@
 	## Creating Access Connector for Databricks
 	--> Accesss connector --> create--> go to adls--> Access Control (IAM)--> ADD --> role assignment--> Storage Blob Data Contributor --> Members(Maanged Identity) --> select members-->Review+Assign
 	
-	## Create Metastore inUnity Catalog:
+	## Create Metastore in Unity Catalog:
 	--->
 		Metastore:
 			A metastore is the top-level container for catalog in Unity Catalog. Within a metastore, Unity Catalog provides a 3-level namespace for organizing data: catalogs, schemas (also called databases), and tables / views.
@@ -786,8 +788,42 @@
 			* rescue  = Schema is never evolved and stream does not fail due to schema changes. All new columns are recorded in the rescued data column.
 			* none = ignore any new columns (Does not evolve the schema, new columns are ignored, and data is not rescued unless the rescuedDataColumn option is set.
 					(Stream does not fail due to schema changes)
-	
-	
+		#rescue
+		df_r_stream = (spark.readStream
+               .format('cloudFiles')
+               .option('cloudFiles.format','csv')
+               .option('cloudFiles.SchemaLocation',f'{stream_path}/schmeaInfer')
+			   .option('cloudFiles.schemaEvolutionMode','rescue')\
+			   .option('rescueDataColumn','_rescued_dara')
+               .option('cloudFiles.inferColumnTypes','true')
+               .option('cloudFiles.schemaHints','Citizens Long') ***
+               .option('header','true').load(stream_path))
+		##AddNewColumns:
+			df_r_stream = (spark.readStream
+               .format('cloudFiles')
+               .option('cloudFiles.format','csv')
+               .option('cloudFiles.SchemaLocation',f'{stream_path}/schmeaInfer')
+               .option('cloudFiles.inferColumnTypes','true')
+               .option('cloudFiles.schemaHints','Citizens Long') ***
+               .option('header','true').load(stream_path))
+		##failOnNewColumns:
+			df_r_stream = (spark.readStream
+               .format('cloudFiles')
+               .option('cloudFiles.format','csv')
+               .option('cloudFiles.SchemaLocation',f'{stream_path}/schmeaInfer')
+			   .option('cloudFiles.schemaEvolutionMode','failOnNewColumns')\
+               .option('cloudFiles.inferColumnTypes','true')
+               .option('cloudFiles.schemaHints','Citizens Long') ***
+               .option('header','true').load(stream_path))
+		#none:
+			df_r_stream = (spark.readStream
+               .format('cloudFiles')
+               .option('cloudFiles.format','csv')
+               .option('cloudFiles.SchemaLocation',f'{stream_path}/schmeaInfer')
+			   .option('cloudFiles.schemaEvolutionMode','none')\
+               .option('cloudFiles.inferColumnTypes','true')
+               .option('cloudFiles.schemaHints','Citizens Long') ***
+               .option('header','true').load(stream_path))
 ##Project Setup:
 	###Ingestion To Bronze:
 		Deta Lake--> Bronze(Using Auto Loader, Trigger availableNow(Incremental batch processing))

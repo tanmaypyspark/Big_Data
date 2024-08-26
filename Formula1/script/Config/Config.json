@@ -1,0 +1,9 @@
+{
+    "PATH":{
+        "base_path": "C:\\Users\\tanma\\Desktop\\GIT_PUSH\\Big_Data\\"
+    },
+    "Formula1": {
+        "SourcePath":"Formula1\\raw\\",
+        "TargetPath":"Formula1\\Destination\\"
+    }
+}
