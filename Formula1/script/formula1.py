@@ -33,7 +33,7 @@ def circuitDf(sourcePath, destPath):
     ]
     )
 
-    circuit_df = spark.read.format('csv').option('header','true').schema(circuit_Schema).load(circuit_path)
+    circuit_df = spark.read.format('csv').option('header','true').schema(circuit_Schema).load(sourcePath)
 
 
     ''' Rename Column'''
@@ -53,9 +53,12 @@ def circuitDf(sourcePath, destPath):
     # print(number_of_partition)
 
     ''' Write the data'''
-    # print(os.path.join(destPath, 'Bronze/Circuit'))
+    # print(destPath)
     # circuit_df.write.csv()
 
+
+def races(sourcePath, destPath):
+    pass
 
 if __name__ =='__main__':
     ''' Main '''
@@ -66,6 +69,6 @@ if __name__ =='__main__':
             .getOrCreate()
     
     ''' Circuit File '''
-    # circuitDf(os.path.join(rawPath, 'circuits.csv'), os.path.join(destPath, 'Bronze\Circuit\\') )
+    circuitDf(os.path.join(rawPath, 'circuits.csv'), os.path.join(destPath, 'Bronze\Circuit\\') )
 
 
